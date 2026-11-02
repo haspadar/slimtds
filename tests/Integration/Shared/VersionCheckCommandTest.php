@@ -60,6 +60,12 @@ beforeEach(function (): void {
     $this->repo = new UpdateStatusRepository($this->db);
 });
 
+// Commands intentionally hold this session lock until process exit. Pest reuses
+// the process and may retain prior test objects, so release it between cases.
+afterEach(function (): void {
+    $this->db->fetchScalar('SELECT pg_advisory_unlock_all()');
+});
+
 test('a successful check stores the release and both timestamps', function (): void {
     [$code] = runCheck($this->repo, ReleaseResult::release('v0.8.0', '2026-09-02T10:00:00Z', 'W/"abc"'));
 

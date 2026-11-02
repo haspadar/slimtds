@@ -276,6 +276,8 @@ schemas:
   16: JS Redirect
 
 filter_fields:
+  lander_host: Домен сайта
+  lander_button: Кнопка
   country: Страна
   region: Регион
   city: Город

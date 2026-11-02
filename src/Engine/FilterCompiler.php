@@ -89,6 +89,8 @@ final class FilterCompiler
             'is_uniq'        => static fn (Context $c) => $c->isUniqVisitor ? '1' : '0',
             'referer'        => static fn (Context $c) => $c->referer,
             'referer_domain' => static fn (Context $c) => $c->refererDomain,
+            'lander_host'    => static fn (Context $c) => $c->landerHost,
+            'lander_button'  => static fn (Context $c) => $c->landerButton,
             'utm_source'     => static fn (Context $c) => $c->utm['source']   ?? null,
             'utm_medium'     => static fn (Context $c) => $c->utm['medium']   ?? null,
             'utm_campaign'   => static fn (Context $c) => $c->utm['campaign'] ?? null,

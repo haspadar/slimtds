@@ -354,6 +354,52 @@ test('trash {offer:name} does not redirect to an inactive offer', function (): v
     expect($resp->getHeaderLine('Location'))->toBe('');
 });
 
+test('a redirect fallback logs the referenced offer', function (int $mode, string $reference): void {
+    $reserve = $this->offers->create(['name' => 'Reserve', 'url' => 'https://reserve.example/?cid={click_id}', 'is_active' => '1']);
+    $ref = $reference === 'name' ? $reserve->name : strtoupper($reserve->id);
+    $this->db->execute('UPDATE core.offers SET is_active = false WHERE id = :id', ['id' => $this->offer->id]);
+    $this->db->execute(
+        'UPDATE core.campaigns SET trash_mode = :mode, trash_url = :url WHERE id = :id',
+        ['mode' => $mode, 'url' => '{offer:' . $ref . '}', 'id' => $this->camp->id],
+    );
+
+    $this->handler->handle((new ServerRequestFactory())->createServerRequest('GET', '/clkt01'), new Response(), 'clkt01');
+
+    expect($this->db->fetchScalar('SELECT offer_id FROM stats.clicks WHERE campaign_id = :id', ['id' => $this->camp->id]))->toBe($reserve->id);
+})->with([1, 4, 5, 6, 7])->with(['name', 'uuid']);
+
+test('a non-redirect fallback does not attribute an unserved offer', function (int $mode): void {
+    $this->db->execute('UPDATE core.flows SET is_active = false WHERE id = :id', ['id' => $this->flow->id]);
+    $this->db->execute(
+        'UPDATE core.campaigns SET trash_mode = :mode, trash_url = :url WHERE id = :id',
+        ['mode' => $mode, 'url' => '{offer:O}', 'id' => $this->camp->id],
+    );
+
+    $this->handler->handle((new ServerRequestFactory())->createServerRequest('GET', '/clkt01'), new Response(), 'clkt01');
+
+    expect($this->db->fetchScalar('SELECT offer_id FROM stats.clicks WHERE campaign_id = :id', ['id' => $this->camp->id]))->toBeNull();
+})->with([0, 2, 3]);
+
+test('an offer-token postback accepts a click served by campaign fallback', function (): void {
+    $this->db->execute('UPDATE core.flows SET is_active = false WHERE id = :id', ['id' => $this->flow->id]);
+    $this->db->execute(
+        'UPDATE core.campaigns SET trash_mode = 1, trash_url = :url WHERE id = :id',
+        ['url' => '{offer:O}', 'id' => $this->camp->id],
+    );
+    $this->handler->handle((new ServerRequestFactory())->createServerRequest('GET', '/clkt01'), new Response(), 'clkt01');
+    $clickId = $this->db->fetchScalar('SELECT id FROM stats.clicks WHERE campaign_id = :id', ['id' => $this->camp->id]);
+    $container = (require dirname(__DIR__, 3) . '/config/di.php')();
+    $postback = $container->get(\App\Postback\PostbackController::class);
+    $request = (new ServerRequestFactory())->createServerRequest('GET', '/postback?' . http_build_query([
+        'token' => $this->offer->postbackToken, 'subid' => $clickId, 'payout' => '4.65',
+    ]));
+
+    $response = $postback($request, new Response());
+
+    expect($response->getStatusCode())->toBe(200);
+    expect($this->db->fetchScalar('SELECT offer_id FROM core.conversions WHERE click_id = :id', ['id' => $clickId]))->toBe($this->offer->id);
+});
+
 test('trash {offer:uuid} does not redirect to an inactive offer either', function (): void {
     // The reference resolves by id before it falls back to the name, so the
     // active-only check has to hold on both branches, not just the named one.
@@ -506,3 +552,34 @@ test('_dbg answers with a plain-text trace instead of redirecting', function ():
         ->and($body)->toContain('flow      all → offer')
         ->and($body)->toContain('location  https://example.com/');
 });
+
+test('lander filters select the forwarded route and preserve original UTM attribution', function (string $host, string $path, bool $matches): void {
+    $this->db->execute('UPDATE core.flows SET filters = :filters::jsonb WHERE id = :id', [
+        'id' => $this->flow->id,
+        'filters' => json_encode([[
+            ['field' => 'lander_host', 'op' => 'eq', 'value' => 'catalog.example'],
+            ['field' => 'lander_button', 'op' => 'eq', 'value' => 'phone'],
+        ]], JSON_THROW_ON_ERROR),
+    ]);
+    $request = (new ServerRequestFactory())->createServerRequest('GET', '/clkt01')
+        ->withHeader('X-Lander-Host', $host)
+        ->withHeader('X-Lander-Path', $path)
+        ->withQueryParams(['utm_source' => 'search', 'utm_medium' => 'organic', 'utm_campaign' => 'spring']);
+    $response = $this->handler->handle($request, new Response(), 'clkt01');
+    $row = $this->db->fetchOne('SELECT flow_id, lander_host, lander_button, utm_source, utm_medium, utm_campaign FROM stats.clicks WHERE campaign_id = :id', ['id' => $this->camp->id]);
+    expect([
+        $response->getStatusCode(), $row,
+    ])->toBe([
+        $matches ? 302 : 200,
+        [
+            'flow_id' => $matches ? $this->flow->id : null,
+            'lander_host' => strtolower($host),
+            'lander_button' => $path === '/play/Phone/' ? 'phone' : 'chat',
+            'utm_source' => 'search', 'utm_medium' => 'organic', 'utm_campaign' => 'spring',
+        ],
+    ]);
+})->with([
+    'matching route' => ['Catalog.Example', '/play/Phone/', true],
+    'different site' => ['directory.example', '/play/Phone/', false],
+    'different button' => ['catalog.example', '/play/chat/', false],
+]);
