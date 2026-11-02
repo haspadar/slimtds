@@ -14,7 +14,7 @@ $initialFilters      = $flow?->filters ?? [];
 $initialTargetOffers = $flow?->targetOffers ?? [];
 $initialSchemaConfig = $flow?->schemaConfig ?? [];
 
-$filterFields = ['country','region','city','asn','device','os','browser','lang','is_bot','bot_name','is_uniq','referer','referer_domain','utm_source','utm_medium','utm_campaign','utm_term','utm_content','time_hour','day_of_week','ip_in_list'];
+$filterFields = ['country','region','city','asn','device','os','browser','lang','is_bot','bot_name','is_uniq','referer','referer_domain','lander_host','lander_button','utm_source','utm_medium','utm_campaign','utm_term','utm_content','time_hour','day_of_week','ip_in_list'];
 $filterOps    = ['eq','neq','in','not_in','regex','gt','lt','between','exists'];
 $schemas      = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
 

@@ -42,6 +42,18 @@ own; this repository holds only the application.
 - **15 schema types** — HTTP 301–308, Meta refresh, Double Meta, iFrame, HTML page, Text, JSON, Curl forward, No Action, HTTP code, Formula
 - **Async click logging** — UUIDv7, bot flag, all visitor metadata stored in `stats.clicks` (RANGE-partitioned, BRIN index)
 
+### Lander flow filters
+
+Flows can match `lander_host` and `lander_button` using the standard filter
+operators and AND-in-OR groups. The existing request context reads the full,
+lowercased hostname from `X-Lander-Host` and the lowercased button from the
+`/play/<button>/` path in `X-Lander-Path`. Configure the site's reverse proxy to
+set these headers from the original request. They describe the originating site
+and button independently of visitor country, referrer, and UTM parameters.
+Without these headers, the lander fields remain absent. These routing hints are
+not an authentication mechanism; the proxy must overwrite client-supplied values.
+The admin flow builder supports creating and editing both filters.
+
 ### Pixel
 
 - **`/p.js`** — FingerprintJS Community Edition with auto-fingerprint on load

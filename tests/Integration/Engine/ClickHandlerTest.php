@@ -552,3 +552,34 @@ test('_dbg answers with a plain-text trace instead of redirecting', function ():
         ->and($body)->toContain('flow      all → offer')
         ->and($body)->toContain('location  https://example.com/');
 });
+
+test('lander filters select the forwarded route and preserve original UTM attribution', function (string $host, string $path, bool $matches): void {
+    $this->db->execute('UPDATE core.flows SET filters = :filters::jsonb WHERE id = :id', [
+        'id' => $this->flow->id,
+        'filters' => json_encode([[
+            ['field' => 'lander_host', 'op' => 'eq', 'value' => 'catalog.example'],
+            ['field' => 'lander_button', 'op' => 'eq', 'value' => 'phone'],
+        ]], JSON_THROW_ON_ERROR),
+    ]);
+    $request = (new ServerRequestFactory())->createServerRequest('GET', '/clkt01')
+        ->withHeader('X-Lander-Host', $host)
+        ->withHeader('X-Lander-Path', $path)
+        ->withQueryParams(['utm_source' => 'search', 'utm_medium' => 'organic', 'utm_campaign' => 'spring']);
+    $response = $this->handler->handle($request, new Response(), 'clkt01');
+    $row = $this->db->fetchOne('SELECT flow_id, lander_host, lander_button, utm_source, utm_medium, utm_campaign FROM stats.clicks WHERE campaign_id = :id', ['id' => $this->camp->id]);
+    expect([
+        $response->getStatusCode(), $row,
+    ])->toBe([
+        $matches ? 302 : 200,
+        [
+            'flow_id' => $matches ? $this->flow->id : null,
+            'lander_host' => strtolower($host),
+            'lander_button' => $path === '/play/Phone/' ? 'phone' : 'chat',
+            'utm_source' => 'search', 'utm_medium' => 'organic', 'utm_campaign' => 'spring',
+        ],
+    ]);
+})->with([
+    'matching route' => ['Catalog.Example', '/play/Phone/', true],
+    'different site' => ['directory.example', '/play/Phone/', false],
+    'different button' => ['catalog.example', '/play/chat/', false],
+]);

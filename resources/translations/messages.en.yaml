@@ -262,6 +262,8 @@ schemas:
   16: JS Redirect
 
 filter_fields:
+  lander_host: Lander host
+  lander_button: Lander button
   country: Country
   region: Region
   city: City
