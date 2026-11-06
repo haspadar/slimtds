@@ -38,7 +38,7 @@ const results = []
             contentType: 'application/javascript',
             body: mode === 'positive-control' ? fs.readFileSync(process.env.PIXEL_CONTROL_BUNDLE, 'utf8') : bundle,
           })
-          if (u.pathname === '/') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Fixture</title></head><body><button id="card">VisibleCardCedar</button><div id="live"></div><div style="height:3000px"></div></body></html>' })
+          if (u.pathname === '/') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Fixture</title></head><body><button id="card">VisibleCardCedar</button><div id="live"></div><div id="editor"><span>Public</span></div><div id="late-block"><span>Public</span></div><div id="moving"><span>Public</span></div><div style="height:3000px"></div></body></html>' })
           unexpected.push(req.url())
           return route.abort()
         })
@@ -113,6 +113,19 @@ const results = []
           window.makeFields('dynamicStandalone', document.body)
           document.querySelector('.rr-block').textContent = 'LaterBlockedPrivate'
           window.secrets.push('LaterBlockedPrivate')
+          // Existing mirror IDs must not leak after a public subtree becomes
+          // editable/blocked, or moves into a form after recording starts.
+          document.querySelector('#editor').contentEditable = 'true'
+          document.querySelector('#late-block').className = 'rr-block'
+          const destination = document.createElement('form')
+          document.body.append(destination)
+          destination.append(document.querySelector('#moving'))
+          for (const [id, marker] of [['editor', 'ConvertedEditorSecret'], ['late-block', 'ConvertedBlockSecret'], ['moving', 'MovedFormSecret']]) {
+            const child = document.querySelector(`#${id} span`)
+            child.firstChild.data = marker
+            child.setAttribute('data-private', marker + 'Attribute')
+            window.secrets.push(marker, marker + 'Attribute')
+          }
           document.querySelector('#live').textContent = 'VisibleMutationBirch'
         })
         await page.locator('#card').click()
@@ -139,7 +152,7 @@ const results = []
           assert(events.some(e => e.type === 3 && e.data.source === 2))
           assert(events.some(e => e.type === 3 && e.data.source === 3))
           if (mode === 'positive-control') {
-            for (const marker of ['BeforeFormPrivate', 'beforeForm_text_private', 'beforeStandalone_hidden_private', 'beforeStandalone_div_private', 'ChangedFormPrivate', 'dynamicForm_text_private', 'dynamicStandalone_div_private']) assert(leaks.includes(marker), marker)
+            for (const marker of ['BeforeFormPrivate', 'beforeForm_text_private', 'beforeStandalone_hidden_private', 'beforeStandalone_div_private', 'ChangedFormPrivate', 'dynamicForm_text_private', 'dynamicStandalone_div_private', 'ConvertedEditorSecret']) assert(leaks.includes(marker), marker)
           } else assert.deepEqual(leaks, [])
           assert(!json.includes('BlockedPrivateOak'))
           assert(!json.includes('LaterBlockedPrivate'))

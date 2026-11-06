@@ -241,9 +241,11 @@ import { record } from 'rrweb'
         // Native blocking excludes contents and field values from snapshots and
         // mutations. Include standalone fields: maskAllInputs alone does not
         // cover hidden inputs, contenteditable or arbitrary field attributes.
+        // Match descendants too: rrweb mutation checks may inspect only the
+        // changed node after an existing container becomes blocked.
         // Keep rrweb's default rr-block class alongside this selector.
         maskAllInputs: true,
-        blockSelector: 'form, input, textarea, select, [contenteditable]',
+        blockSelector: 'form, form *, input, textarea, select, [contenteditable], [contenteditable] *, .rr-block *',
         emit: function (event) {
         buffer.push(event)
         // Full Snapshot (type 2) is large — flush it immediately via plain fetch
