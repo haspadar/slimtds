@@ -63,7 +63,7 @@ The admin flow builder supports creating and editing both filters.
 ### Session recording (rrweb)
 
 - **Zero site-change** — rides on the existing `/p.js` pixel; rrweb is bundled inside and activates automatically when the script is loaded
-- **Recording privacy** — the native pixel enables rrweb `maskAllInputs` and blocks forms, standalone inputs, textareas, selects and contenteditable subtrees (including field values, form action/data attributes and later mutations); the default `rr-block` class still works. Cards, clicks and scroll outside blocked elements remain recordable. Descendant selectors also exclude later mutations when an already recorded subtree becomes editable/blocked or moves into a form; data recorded before that transition cannot be removed retroactively. Native blocked placeholders retain CSS classes and dimensions. URLs and the rest of the DOM are not globally masked; keep sensitive data out of those surfaces or mark a containing element `rr-block` before recording starts
+- **Recording privacy** — the native pixel enables rrweb `maskAllInputs` and blocks forms, standalone inputs, textareas, selects and contenteditable subtrees (including field values, form action/data attributes and later mutations); the default `rr-block` class still works. Cards, clicks and scroll outside blocked elements remain recordable. In light DOM, descendant selectors also exclude later mutations when an already recorded subtree becomes editable/blocked or moves into a form; data recorded before that transition cannot be removed retroactively. Native blocked placeholders retain CSS classes and dimensions. URLs and the rest of the DOM are not globally masked; keep sensitive data out of those surfaces or mark a containing element `rr-block` before recording starts
 - **`/p/rec`** — chunk-ingest endpoint; events land in `stats.rrweb_chunks` (daily-partitioned)
 - **`rrweb:flush`** cron (every minute) assembles completed sessions and writes final records
 - **`/admin/sessions`** — replay UI with campaign and activity filters. Records without mouse/touch movement, button presses or clicks are marked **possible bots**; this is a heuristic, not a confirmed bot verdict. The default view hides these records and includes all durations; unclassified records stay visible. Scrolling or typing alone does not satisfy this pointer-activity rule.
@@ -438,3 +438,9 @@ the fixture covers it alongside late `rr-block` and moving a node into a form.
 Blocking never retracts earlier recordings: set field semantics or `rr-block`
 before first serialization. These checks do not establish privacy for arbitrary
 WYSIWYG integrations; inspect their actual DOM transitions before enabling them.
+
+CSS descendant selectors do not cross shadow roots. Moving a previously recorded
+web component with an open shadow root into a blocked form can still expose later
+shadow-child text/attribute changes in rrweb 2.1.7. This configuration does not
+claim to protect that transition: establish blocking before first serialization
+and review shadow DOM/editor integrations separately before enabling recording.
