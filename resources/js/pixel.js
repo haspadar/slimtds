@@ -238,7 +238,7 @@ import { record } from 'rrweb'
 
     try {
       record({
-        // Native blocking removes contents and attributes from snapshots and
+        // Native blocking excludes contents and field values from snapshots and
         // mutations. Include standalone fields: maskAllInputs alone does not
         // cover hidden inputs, contenteditable or arbitrary field attributes.
         // Keep rrweb's default rr-block class alongside this selector.
