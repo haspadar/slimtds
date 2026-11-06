@@ -34,7 +34,7 @@ $title = t('settings.title');
 require __DIR__ . '/../../_partials/page-header.php';
 ?>
 
-<div x-data="{ tab: (location.hash ? location.hash.slice(1) : 'general') }"
+<div x-data="{ tab: (['general', 'backups', 'cron', 'notifications', 'mcp'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'general') }"
      x-init="$watch('tab', v => history.replaceState(null, '', '#' + v))">
 
     <nav class="tabs" role="tablist">

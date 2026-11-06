@@ -28,23 +28,23 @@
       })();
     </script>
 </head>
-<body class="app-shell" x-data="{ navOpen: false, theme: (document.documentElement.getAttribute('data-theme') || 'light'), density: (document.documentElement.getAttribute('data-density') || 'comfortable') }"
+<body class="app-shell" x-data="{ theme: (document.documentElement.getAttribute('data-theme') || 'light'), density: (document.documentElement.getAttribute('data-density') || 'comfortable') }"
       style="display:grid;grid-template-columns:240px 1fr;grid-template-rows:1fr auto;grid-template-areas:'sidebar main' 'sidebar footer';min-height:100vh;background-color:var(--color-bg)">
 
     <!-- ── Mobile topbar ───────────────────────────────────────────────────── -->
-    <header class="topbar-mobile" style="display:none;grid-area:main;position:sticky;top:0;z-index:30;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:10px 16px;align-items:center;justify-content:space-between;height:56px;margin-bottom:-56px">
+    <header id="admin-menu-toggle" tabindex="-1" class="topbar-mobile" style="display:none;grid-area:main;position:sticky;top:0;z-index:30;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:10px 16px;align-items:center;justify-content:space-between;height:56px;margin-bottom:-56px">
         <a href="<?= e(url('/admin')) ?>" style="text-decoration:none">
             <?php $size=22; $variant='light'; $tagline=false; require __DIR__ . '/../_partials/wordmark.php'; ?>
         </a>
-        <button @click="navOpen = true" aria-label="<?= e(t('a11y.open_nav')) ?>"
+        <a id="admin-menu-open" class="mobile-menu-toggle" href="#admin-navigation" aria-controls="admin-navigation" aria-label="<?= e(t('a11y.open_nav')) ?>"
                 style="background:transparent;border:1px solid var(--color-border);border-radius:4px;padding:6px 10px;cursor:pointer;color:var(--color-text);display:inline-flex;align-items:center;gap:6px;font-family:var(--font-sans);font-size:0.85rem">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
             <span><?= e(t('a11y.menu')) ?></span>
-        </button>
+        </a>
     </header>
 
     <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
-    <aside class="app-sidebar" :class="{ 'is-open': navOpen }"
+    <aside id="admin-navigation" class="app-sidebar" tabindex="-1"
            style="border-right:1px solid var(--color-border);background:var(--color-surface);display:flex;flex-direction:column">
 
         <!-- Brand -->
@@ -52,14 +52,14 @@
             <a href="<?= e(url('/admin')) ?>" style="text-decoration:none">
                 <?php $size=22; $variant='light'; $tagline=true; require __DIR__ . '/../_partials/wordmark.php'; ?>
             </a>
-            <button class="mobile-only" @click="navOpen = false" aria-label="<?= e(t('a11y.close_nav')) ?>"
+            <a class="mobile-only mobile-menu-close" href="#admin-menu-toggle" aria-label="<?= e(t('a11y.close_nav')) ?>"
                     style="background:transparent;border:0;cursor:pointer;color:var(--color-faint);padding:4px;display:none">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
-            </button>
+            </a>
         </div>
 
         <!-- Nav -->
-        <nav style="flex:1;padding:8px 0;overflow-y:auto" @click="navOpen = false">
+        <nav style="flex:1;padding:8px 0;overflow-y:auto">
             <?php
             $navItems = [
                 ['/admin',              t('menu.dashboard'),   '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'],
@@ -130,7 +130,7 @@
     </aside>
 
     <!-- Mobile backdrop -->
-    <div x-show="navOpen" x-cloak @click="navOpen = false" class="nav-backdrop mobile-only" style="display:none"></div>
+    <a href="#admin-menu-toggle" aria-label="<?= e(t('a11y.close_nav')) ?>" class="nav-backdrop mobile-only" style="display:none"></a>
 
     <!-- ── Main ─────────────────────────────────────────────────────────── -->
     <div style="grid-area:main;min-width:0;display:flex;flex-direction:column">

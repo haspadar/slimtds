@@ -154,7 +154,7 @@ $renderSettings = function () use ($campaign, $action, $errors, $csrf_token, $ti
 <?php else: ?>
 
 <!-- ── Tabs (edit-mode workspace) ───────────────────────────────────── -->
-<div x-data="{ tab: (location.hash ? location.hash.slice(1) : 'settings') }"
+<div x-data="{ tab: (['settings', 'flows', 'pixel', 'postback', 'diagram', 'danger'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'settings') }"
      x-init="$watch('tab', v => history.replaceState(null, '', '#' + v))">
     <nav class="tabs" role="tablist">
         <button class="tab" role="tab" :class="{ 'is-active': tab === 'settings' }" @click="tab = 'settings'">
