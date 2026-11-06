@@ -237,7 +237,14 @@ import { record } from 'rrweb'
     resolveFp().then(function (id) { fpId = id })
 
     try {
-      record({ emit: function (event) {
+      record({
+        // Native blocking removes contents and attributes from snapshots and
+        // mutations. Include standalone fields: maskAllInputs alone does not
+        // cover hidden inputs, contenteditable or arbitrary field attributes.
+        // Keep rrweb's default rr-block class alongside this selector.
+        maskAllInputs: true,
+        blockSelector: 'form, input, textarea, select, [contenteditable]',
+        emit: function (event) {
         buffer.push(event)
         // Full Snapshot (type 2) is large — flush it immediately via plain fetch
         // (no keepalive 64 KB cap) instead of waiting for the 5s interval, so even

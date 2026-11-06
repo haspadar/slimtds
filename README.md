@@ -63,6 +63,7 @@ The admin flow builder supports creating and editing both filters.
 ### Session recording (rrweb)
 
 - **Zero site-change** — rides on the existing `/p.js` pixel; rrweb is bundled inside and activates automatically when the script is loaded
+- **Recording privacy** — the native pixel enables rrweb `maskAllInputs` and blocks forms, standalone inputs, textareas, selects and contenteditable subtrees (including their attributes and later mutations); the default `rr-block` class still works. Cards, clicks and scroll outside blocked elements remain recordable. URLs and the rest of the DOM are not globally masked; keep sensitive data out of those surfaces or mark a containing element `rr-block` before recording starts
 - **`/p/rec`** — chunk-ingest endpoint; events land in `stats.rrweb_chunks` (daily-partitioned)
 - **`rrweb:flush`** cron (every minute) assembles completed sessions and writes final records
 - **`/admin/sessions`** — replay UI with campaign and activity filters. Records without mouse/touch movement, button presses or clicks are marked **possible bots**; this is a heuristic, not a confirmed bot verdict. The default view hides these records and includes all durations; unclassified records stay visible. Scrolling or typing alone does not satisfy this pointer-activity rule.
@@ -417,3 +418,14 @@ node /tmp/pixel-test.mjs   # walks all 4 sites + 3 pages each, verifies events +
 Licensed under the **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later) — see [LICENSE](LICENSE).
 
 You can self-host and modify slimTDS freely. If you run a modified version as a network service for others, the AGPL requires you to make your modified source available to those users.
+
+### Isolated pixel privacy check
+
+After `bun install --frozen-lockfile` and `bun run build`, run
+`bunx playwright install chromium` then `node tests/pixel-privacy.cjs`.
+This fixture intercepts every request and uses only synthetic pages at
+`https://fixture.test`; it needs no running application or database.
+`CHROME_BIN` selects an existing Chromium executable. Optional
+`PIXEL_CONTROL_BUNDLE` points to a pre-change pixel build for a positive leak
+control; `PIXEL_PRIVACY_RESULT` saves the bundle hash and JSON evidence.
+The CI pixel-privacy job builds and tests the actual bundled pixel.
