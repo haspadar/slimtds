@@ -429,3 +429,12 @@ This fixture intercepts every request and uses only synthetic pages at
 `PIXEL_CONTROL_BUNDLE` points to a pre-change pixel build for a positive leak
 control; `PIXEL_PRIVACY_RESULT` saves the bundle hash and JSON evidence.
 The CI pixel-privacy job builds and tests the actual bundled pixel.
+
+rrweb 2.1.7 checks some text/attribute mutations without checking ancestors.
+A previously recorded `div > span` changed to `contenteditable`, followed by
+changes to the span's text and data attributes, leaked those new values with
+only a root selector. The descendant selectors now block that reproduced case;
+the fixture covers it alongside late `rr-block` and moving a node into a form.
+Blocking never retracts earlier recordings: set field semantics or `rr-block`
+before first serialization. These checks do not establish privacy for arbitrary
+WYSIWYG integrations; inspect their actual DOM transitions before enabling them.
