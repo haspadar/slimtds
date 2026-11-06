@@ -44,3 +44,13 @@ jobs:
       - run: ./vendor/bin/pest --testsuite=Unit
       - run: ./vendor/bin/pest --testsuite=Integration
       - run: ./vendor/bin/pest --testsuite=Arch
+
+  pixel-privacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npm install --global bun@1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bunx playwright install --with-deps chromium
+      - run: node tests/pixel-privacy.cjs
