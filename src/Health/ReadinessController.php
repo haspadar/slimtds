@@ -10,9 +10,10 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Readiness: can THIS worker, on the connection it really serves clicks with,
- * read the routing configuration. /__health only says the process answers;
- * a worker holding a dead connection answers it just fine while every click
- * fails. The body carries no error detail and the status is 503 on any
+ * read the routing configuration. /__health only says the process answers.
+ * The outermost middleware heals a dropped connection before this route runs,
+ * so 200 means the worker serves clicks again; 503 means healing failed or
+ * the database cannot be read or written. The body carries no error detail and the status is 503 on any
  * failure, so a probe can alert on the code alone.
  */
 final class ReadinessController
