@@ -19,6 +19,10 @@ return static function (App $app): void {
         return $response->withHeader('Content-Type', 'application/json');
     });
 
+    // Readiness — reads routing config through this worker's own DB connection;
+    // 503 when it cannot. Never creates clicks, conversions or sessions.
+    $app->get('/__ready', \App\Health\ReadinessController::class);
+
     // Корень — пока редирект в админку
     $app->get('/', function (Request $request, Response $response): Response {
         return $response->withHeader('Location', '/admin')->withStatus(302);
