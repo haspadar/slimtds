@@ -195,3 +195,44 @@ test('a never-used lazy connection is left unopened by the middleware', function
 
     expect($opened)->toBe(0);
 });
+
+test('the real app heals a dropped connection before routing /__ready', function (): void {
+    $app = (require dirname(__DIR__, 3) . '/config/app.php')();
+    $db = $app->getContainer()->get(Connection::class);
+    $db->fetchScalar('SELECT 1');
+    killBackendOf($db);
+
+    $response = $app->handle((new ServerRequestFactory())->createServerRequest('GET', '/__ready'));
+
+    expect($response->getStatusCode())->toBe(200);
+    expect($db->isAlive())->toBeTrue();
+});
+
+test('the recovery middleware is the outermost layer of the real app', function (): void {
+    $app = (require dirname(__DIR__, 3) . '/config/app.php')();
+    $db = $app->getContainer()->get(Connection::class);
+    $db->fetchScalar('SELECT 1');
+    killBackendOf($db);
+
+    // A route that reads the database straight away must find a healed connection.
+    $response = $app->handle((new ServerRequestFactory())->createServerRequest('GET', '/__ready'));
+
+    expect(json_decode((string) $response->getBody(), true)['ok'])->toBeTrue();
+});
+
+test('a fresh connect failure is not retried on every access', function (): void {
+    $attempts = 0;
+    $db = new Connection(null, function () use (&$attempts): PDO {
+        ++$attempts;
+        throw new PDOException('connection refused');
+    });
+
+    foreach (range(1, 5) as $_) {
+        try {
+            $db->fetchScalar('SELECT 1');
+        } catch (PDOException) {
+        }
+    }
+
+    expect($attempts)->toBe(1);
+});

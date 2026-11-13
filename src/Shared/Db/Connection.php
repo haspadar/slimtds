@@ -23,9 +23,18 @@ use PDOStatement;
  */
 final class Connection
 {
+    private const RETRY_AFTER_FAILURE = 2.0;
+
+    private const LOG_EVERY = 10.0;
+
     private ?PDO $handle;
 
     private bool $broken = false;
+
+    /** When opening last failed, to avoid paying the connect timeout again and again. */
+    private ?float $failedAt = null;
+
+    private float $lastLogAt = 0.0;
 
     /**
      * @param (Closure(): PDO)|null $factory when given, the connection is
@@ -67,7 +76,7 @@ final class Connection
             $this->handle = $this->open();
         } catch (PDOException $e) {
             $this->broken = true;
-            error_log('slimtds: database reconnect failed: ' . $e->getMessage());
+            $this->logThrottled('slimtds: database reconnect failed: ' . $e->getMessage());
             return false;
         }
         if ($reconnect) {
@@ -77,8 +86,10 @@ final class Connection
     }
 
     /**
-     * Whether a query goes through on the connection this process really uses.
-     * Never reconnects: readiness must report the state, not hide it.
+     * Whether a query goes through on the connection this process really uses,
+     * without replacing it. In the worker the outermost middleware has already
+     * healed the connection before any route runs, so a route that asks sees a
+     * live one unless healing failed.
      */
     public function isAlive(): bool
     {
@@ -93,9 +104,31 @@ final class Connection
         if ($this->factory === null) {
             throw new \LogicException('Connection was closed and has no factory to reopen it');
         }
-        $pdo = ($this->factory)();
+        // A server that drops packets costs the connect timeout per attempt, and one
+        // request can touch the connection many times: remember a fresh failure.
+        if ($this->failedAt !== null && microtime(true) - $this->failedAt < self::RETRY_AFTER_FAILURE) {
+            $e = new PDOException('database unavailable: connect failed moments ago');
+            $e->errorInfo = ['08006', 7, 'connect failed moments ago'];
+            throw $e;
+        }
+        try {
+            $pdo = ($this->factory)();
+        } catch (PDOException $e) {
+            $this->failedAt = microtime(true);
+            throw $e;
+        }
+        $this->failedAt = null;
         $this->broken = false;
         return $pdo;
+    }
+
+    private function logThrottled(string $message): void
+    {
+        $now = microtime(true);
+        if ($now - $this->lastLogAt >= self::LOG_EVERY) {
+            $this->lastLogAt = $now;
+            error_log($message);
+        }
     }
 
     private function isUsable(PDO $pdo): bool
