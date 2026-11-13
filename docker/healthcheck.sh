@@ -1,5 +1,8 @@
 #!/bin/sh
-# Проверка живости контейнера. Стучаться надо туда, где слушает конфиг
+# Проверка готовности контейнера. /__ready читает маршруты через соединение
+# самого worker, поэтому оборванное соединение с базой видно здесь, а не
+# только в логах (/__health отвечает и при мёртвом соединении).
+# Стучаться надо туда, где слушает конфиг
 # активного режима, иначе healthcheck меряет не то: базовый вариант всегда
 # ходил на http://localhost:80, а cf_full слушает 443, direct — только своё
 # доменное имя. В обоих случаях контейнер оказывался вечно unhealthy при
@@ -19,7 +22,7 @@ MODE="${DEPLOY_MODE:-dev}"
 case "$MODE" in
     dev|cf_flex)
         # Caddy слушает :80 открытым текстом.
-        exec curl -fsS --max-time 3 -o /dev/null http://127.0.0.1/__health
+        exec curl -fsS --max-time 3 -o /dev/null http://127.0.0.1/__ready
         ;;
     direct)
         # Единственный сайт в конфиге привязан к домену, поэтому запрос на
@@ -29,7 +32,7 @@ case "$MODE" in
             exit 1
         fi
         exec curl -fsSk --max-time 3 -o /dev/null \
-            --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/__health"
+            --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/__ready"
         ;;
     *)
         echo "healthcheck: unknown DEPLOY_MODE=$MODE" >&2

@@ -30,7 +30,10 @@ return static function (): \DI\Container {
     $builder = new ContainerBuilder();
     $builder->useAutowiring(true);
     $builder->addDefinitions([
-        PDO::class => static function (): PDO {
+        // Opens one database connection. Shared by the lazy Connection below so a
+        // long-lived worker can open a fresh one after the server went away.
+        'db.connect' => static function (): \Closure {
+            return static function (): PDO {
             $dsn  = $_ENV['DB_DSN'] ?? sprintf(
                 'pgsql:host=%s;port=%s;dbname=%s',
                 $_ENV['DB_HOST'] ?? 'db',
@@ -45,6 +48,10 @@ return static function (): \DI\Container {
                     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES   => false,
+                    // Bound the connect: recover() runs before every request, and a
+                    // database host that drops packets must not stall the worker
+                    // for the kernel's TCP timeout each time.
+                    PDO::ATTR_TIMEOUT            => 3,
                 ],
             );
             // Per-session timezone: timestamptz still stored in UTC but
@@ -53,14 +60,18 @@ return static function (): \DI\Container {
             $tz = $_ENV['APP_TZ'] ?? 'Europe/Moscow';
             $pdo->exec("SET TIME ZONE " . $pdo->quote($tz));
             return $pdo;
+            };
         },
+        // CLI classes that take a bare PDO share the Connection's handle.
+        PDO::class => static fn (ContainerInterface $c): PDO => $c->get(\App\Shared\Db\Connection::class)->pdo,
         Partitions::class     => \DI\autowire(),
         PasswordHasher::class => \DI\autowire(),
         \App\Admin\Repository\AdminRepository::class => \DI\autowire(),
         \App\Shared\RateLimit\RateLimiter::class => \DI\autowire(),
         \App\Shared\Auth\AuthEventLogger::class => \DI\autowire(),
-        \App\Shared\Db\Connection::class => \DI\autowire()
-            ->constructorParameter('pdo', \DI\get(PDO::class)),
+        // Lazy: a worker starts while PostgreSQL is down and connects on first use.
+        \App\Shared\Db\Connection::class => static fn (ContainerInterface $c): \App\Shared\Db\Connection
+            => new \App\Shared\Db\Connection(null, $c->get('db.connect')),
         \App\Shared\Session\PgSessionHandler::class => static function (\App\Shared\Db\Connection $db): \App\Shared\Session\PgSessionHandler {
             $lifetime = (int)($_ENV['SESSION_LIFETIME'] ?? 1_209_600);
             return new \App\Shared\Session\PgSessionHandler($db, $lifetime);

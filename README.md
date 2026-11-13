@@ -389,7 +389,8 @@ node /tmp/pixel-test.mjs   # walks all 4 sites + 3 pages each, verifies events +
 ## Key URLs (dev stack)
 
 - `https://slimtds.local/` — redirects to `/admin`
-- `https://slimtds.local/__health` — JSON health check
+- `https://slimtds.local/__health` — JSON liveness check (process answers; no database access)
+- `https://slimtds.local/__ready` — JSON readiness check: reads the routing tables through the worker's own database connection, `503` when it cannot. Long-lived workers replace a lost database connection between requests; a statement cut off by the loss is never replayed
 - `https://slimtds.local/admin/login` — admin login
 - `https://slimtds.local/admin/campaigns` — campaigns CRUD
 - `https://slimtds.local/admin/offers` — global offers CRUD (M4)
