@@ -16,6 +16,8 @@ return static function (): App {
         logErrors: true,
         logErrorDetails: true,
     );
+    // Added last, so it runs first: the connection is checked before routing.
+    $app->add(\App\Shared\Db\RecoverConnectionMiddleware::class);
 
     (require __DIR__ . '/routes.php')($app);
 

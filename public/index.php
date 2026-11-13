@@ -25,13 +25,7 @@ if (!function_exists('frankenphp_handle_request')) {
 // routes requests here directly instead of re-bootstrapping per request.
 ignore_user_abort(true);
 
-// The database can vanish under a live worker (server restart, upgrade).
-// Check the connection between requests, never inside one, and replace it if
-// it is gone; the request itself is never replayed.
-$db = $app->getContainer()->get(\App\Shared\Db\Connection::class);
-
-$handler = static function () use ($app, $db): void {
-    $db->recover();
+$handler = static function () use ($app): void {
     $app->run();
 };
 
