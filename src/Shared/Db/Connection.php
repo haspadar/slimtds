@@ -55,6 +55,9 @@ final class Connection
         if ($this->factory === null) {
             return true;
         }
+        if ($this->handle === null && !$this->broken) {
+            return true; // never connected: the first query connects lazily
+        }
         if ($this->handle !== null && !$this->broken && $this->isUsable($this->handle)) {
             return true;
         }

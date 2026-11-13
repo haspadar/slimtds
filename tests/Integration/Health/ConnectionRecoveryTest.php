@@ -126,6 +126,8 @@ test('recover reports failure instead of throwing when the database is unreachab
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
     ));
 
+    expect(fn () => $db->fetchScalar('SELECT 1'))->toThrow(PDOException::class);
+
     expect($db->recover())->toBeFalse();
     expect($db->isAlive())->toBeFalse();
 });
@@ -156,4 +158,40 @@ test('readiness is 503 when the server only accepts reads', function (): void {
     $response = $ready((new ServerRequestFactory())->createServerRequest('GET', '/__ready'), new Response());
 
     expect($response->getStatusCode())->toBe(503);
+});
+
+test('the outermost middleware heals the connection before the route runs', function (): void {
+    $db = freshConnection();
+    $db->fetchScalar('SELECT 1');
+    killBackendOf($db);
+
+    $middleware = new App\Shared\Db\RecoverConnectionMiddleware($db);
+    $route = new class ($db) implements Psr\Http\Server\RequestHandlerInterface {
+        public function __construct(private readonly Connection $db) {}
+
+        public function handle(Psr\Http\Message\ServerRequestInterface $request): Psr\Http\Message\ResponseInterface
+        {
+            $response = new Response();
+            $response->getBody()->write((string) $this->db->fetchScalar('SELECT 7'));
+
+            return $response;
+        }
+    };
+
+    $response = $middleware->process((new ServerRequestFactory())->createServerRequest('GET', '/'), $route);
+
+    expect((string) $response->getBody())->toBe('7');
+});
+
+test('a never-used lazy connection is left unopened by the middleware', function (): void {
+    $opened = 0;
+    $db = new Connection(null, function () use (&$opened): PDO {
+        ++$opened;
+
+        return pdo();
+    });
+
+    $db->recover();
+
+    expect($opened)->toBe(0);
 });
